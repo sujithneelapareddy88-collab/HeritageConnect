@@ -2,7 +2,6 @@ import math
 import requests
 import pandas as pd
 import networkx as nx
-from analytics import build_graph, calculate_metrics
 import streamlit as st
 import folium
 from streamlit_folium import st_folium
@@ -37,10 +36,7 @@ st.markdown("""
 }
 .block-container {
     max-width: 100% !important;
-    padding-top: 1.5rem !important;
-    padding-bottom: 2.5rem !important;
-    padding-left: 2.2rem !important;
-    padding-right: 2.2rem !important;
+    padding: 1.5rem 2.2rem 2.5rem 2.2rem !important;
 }
 [data-testid="stSidebar"] {
     background: #102A43;
@@ -48,13 +44,6 @@ st.markdown("""
 }
 [data-testid="stSidebar"] * {
     color: #F0F6FC;
-}
-[data-testid="stSidebar"] [data-testid="stRadio"] label {
-    padding: 0.55rem 0.7rem;
-    border-radius: 0.65rem;
-}
-[data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
-    background: #1E405D;
 }
 .hc-brand {
     display: flex;
@@ -79,8 +68,6 @@ st.markdown("""
     color: #FFFFFF;
     font-size: 21px;
     font-weight: 750;
-    letter-spacing: -0.4px;
-    line-height: 1.15;
 }
 .hc-brand-subtitle {
     color: #B9CBD9;
@@ -88,27 +75,23 @@ st.markdown("""
     margin-top: 4px;
 }
 .hc-hero {
-    background: linear-gradient(115deg, #102A43 0%, #174E63 65%, #0F766E 100%);
+    background: linear-gradient(115deg, #102A43, #174E63, #0F766E);
     color: white;
     border-radius: 20px;
     padding: 26px 30px;
     margin-bottom: 22px;
-    box-shadow: 0 10px 28px rgba(16, 42, 67, 0.12);
 }
 .hc-eyebrow {
     color: #A7F3D0;
     font-size: 11px;
     font-weight: 800;
     letter-spacing: 1.7px;
-    text-transform: uppercase;
     margin-bottom: 8px;
 }
 .hc-hero h1 {
     color: white;
     font-size: clamp(27px, 3vw, 38px);
-    line-height: 1.12;
     margin: 0 0 8px 0;
-    letter-spacing: -1px;
 }
 .hc-hero p {
     color: #D9E8F2;
@@ -117,18 +100,15 @@ st.markdown("""
 }
 h1, h2, h3 {
     color: #102A43;
-    letter-spacing: -0.35px;
 }
 [data-testid="stMetric"] {
     background: white;
     border: 1px solid #E1EAF2;
     border-radius: 15px;
     padding: 17px 18px;
-    box-shadow: 0 3px 12px rgba(16, 42, 67, 0.04);
 }
 [data-testid="stMetricLabel"] {
     color: #627D98;
-    font-weight: 600;
 }
 [data-testid="stMetricValue"] {
     color: #102A43;
@@ -138,96 +118,35 @@ h1, h2, h3 {
     border-radius: 10px;
     font-weight: 650;
     min-height: 42px;
-    border: 1px solid #0F766E;
-    transition: all 0.15s ease;
 }
-.stButton > button[kind="primary"], .stFormSubmitButton > button[kind="primary"] {
+.stButton > button[kind="primary"],
+.stFormSubmitButton > button[kind="primary"] {
     background: #0F766E;
     color: white;
 }
-.stButton > button:hover, .stFormSubmitButton > button:hover {
-    border-color: #115E59;
-    color: #0F766E;
-}
-div[data-testid="stDataFrame"], div[data-testid="stTable"] {
-    border: 1px solid #E1EAF2;
-    border-radius: 12px;
-    overflow: hidden;
-}
-div[data-testid="stAlert"] {
-    border-radius: 12px;
-}
-hr {
-    border-color: #DCE6EF;
-}
-/* High-contrast widget colors */
 [data-testid="stTextInput"] input,
 [data-testid="stNumberInput"] input,
 [data-testid="stTextArea"] textarea {
-    background-color: #FFFFFF !important;
+    background: white !important;
     color: #102A43 !important;
     -webkit-text-fill-color: #102A43 !important;
     border: 1px solid #B8C9D9 !important;
     border-radius: 10px !important;
 }
-[data-testid="stTextInput"] input::placeholder,
-[data-testid="stTextArea"] textarea::placeholder {
-    color: #627D98 !important;
-    -webkit-text-fill-color: #627D98 !important;
-    opacity: 1 !important;
-}
 [data-testid="stSelectbox"] div[data-baseweb="select"] {
-    background-color: #FFFFFF !important;
+    background: white !important;
     color: #102A43 !important;
-    border-radius: 10px !important;
-}
-[data-testid="stSelectbox"] div[data-baseweb="select"] * {
-    color: #102A43 !important;
-}
-[data-testid="stSlider"] [role="slider"] {
-    background-color: #0F766E !important;
-    border-color: #0F766E !important;
-}
-[data-testid="stSidebar"] [data-testid="stRadio"] label {
-    color: #F0F6FC !important;
-    background: transparent;
-    border: 1px solid transparent;
-    transition: background 0.15s ease;
 }
 [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) {
     background: #0F766E !important;
-    border-color: #5EEAD4 !important;
     border-radius: 10px !important;
-}
-[data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) * {
-    color: #FFFFFF !important;
-}
-[data-testid="stMarkdownContainer"], [data-testid="stMarkdownContainer"] p,
-[data-testid="stCaptionContainer"], [data-testid="stWidgetLabel"] p,
-[data-testid="stMetricLabel"], [data-testid="stMetricValue"] {
-    color: #243B53;
-}
-[data-testid="stDataFrame"] [role="gridcell"],
-[data-testid="stDataFrame"] [role="columnheader"] {
-    color: #243B53 !important;
 }
 .hc-section-label {
     color: #0F766E;
     font-size: 11px;
     font-weight: 800;
-    text-transform: uppercase;
     letter-spacing: 1.4px;
     margin-bottom: 4px;
-}
-@media (max-width: 800px) {
-    .block-container {
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-    }
-    .hc-hero {
-        padding: 22px;
-        border-radius: 15px;
-    }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -260,13 +179,20 @@ for key, value in {
 
 
 # ==================================================
-# DISTANCE
+# DISTANCE CALCULATION
 # ==================================================
 def haversine_km(lat1, lon1, lat2, lon2):
+    """Calculate straight-line geographic distance in kilometres."""
     radius = 6371.0
 
     lat1, lon1, lat2, lon2 = map(
-        math.radians, [lat1, lon1, lat2, lon2]
+        math.radians,
+        [
+            float(lat1),
+            float(lon1),
+            float(lat2),
+            float(lon2),
+        ],
     )
 
     dlat = lat2 - lat1
@@ -274,17 +200,79 @@ def haversine_km(lat1, lon1, lat2, lon2):
 
     a = (
         math.sin(dlat / 2) ** 2
-        + math.cos(lat1) * math.cos(lat2)
+        + math.cos(lat1)
+        * math.cos(lat2)
         * math.sin(dlon / 2) ** 2
     )
 
-    return 2 * radius * math.asin(
-        min(1, math.sqrt(a))
-    )
+    a = max(0.0, min(1.0, a))
+
+    return 2 * radius * math.asin(math.sqrt(a))
 
 
 # ==================================================
-# GEOCODING: INDIA-WIDE SEARCH
+# FIXED GRAPH BUILDER
+# ==================================================
+def build_graph(points, max_distance_km=10):
+    """
+    Connect two locations only when their real geographic
+    distance is within the selected distance threshold.
+    """
+    graph = nx.Graph()
+
+    for point in points:
+        graph.add_node(
+            point["name"],
+            lat=float(point["lat"]),
+            lon=float(point["lon"]),
+        )
+
+    for i, first in enumerate(points):
+        for second in points[i + 1:]:
+            distance = haversine_km(
+                first["lat"],
+                first["lon"],
+                second["lat"],
+                second["lon"],
+            )
+
+            if distance <= max_distance_km:
+                graph.add_edge(
+                    first["name"],
+                    second["name"],
+                    distance=distance,
+                    distance_km=distance,
+                )
+
+    return graph
+
+
+# ==================================================
+# NETWORK METRICS
+# ==================================================
+def calculate_metrics(graph):
+    if graph.number_of_nodes() == 0:
+        return {
+            "degree_centrality": {},
+            "betweenness_centrality": {},
+            "density": 0.0,
+            "components": [],
+        }
+
+    return {
+        "degree_centrality": nx.degree_centrality(graph),
+        "betweenness_centrality": nx.betweenness_centrality(
+            graph,
+            weight="distance",
+            normalized=True,
+        ),
+        "density": nx.density(graph),
+        "components": list(nx.connected_components(graph)),
+    }
+
+
+# ==================================================
+# GEOCODING
 # ==================================================
 def geocode_place(query):
     response = requests.get(
@@ -304,8 +292,7 @@ def geocode_place(query):
 
     if not results:
         raise ValueError(
-            "Place not found. Try a more specific Indian "
-            "city, landmark, heritage site, or address."
+            "Place not found. Enter a more specific Indian location."
         )
 
     place = results[0]
@@ -319,21 +306,20 @@ def geocode_place(query):
 
 
 # ==================================================
-# NEARBY ATTRACTIONS
+# FETCH NEARBY ATTRACTIONS
 # ==================================================
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_nearby_attractions(lat, lon, radius_km):
-    """Fetch and cache nearby attractions, with smaller-radius fallbacks."""
-
-    requested_radius = max(1, int(radius_km))
-
     radii = list(dict.fromkeys(
-        [requested_radius]
-        + [r for r in (10, 5, 2) if r < requested_radius]
+        [max(1, int(radius_km))]
+        + [
+            r for r in (10, 5, 2)
+            if r < int(radius_km)
+        ]
     ))
 
     for radius in radii:
-        radius_m = int(radius * 1000)
+        radius_m = radius * 1000
 
         query = f"""
         [out:json][timeout:12];
@@ -354,10 +340,9 @@ def fetch_nearby_attractions(lat, lon, radius_km):
                     headers=HEADERS,
                     timeout=15,
                 )
-
                 response.raise_for_status()
-                elements = response.json().get("elements", [])
 
+                elements = response.json().get("elements", [])
                 found = []
                 seen = set()
 
@@ -423,8 +408,7 @@ def fetch_nearby_attractions(lat, lon, radius_km):
                 continue
 
     raise RuntimeError(
-        "Nearby attraction data is temporarily unavailable from "
-        "the public map servers. Please wait and try again."
+        "Attraction data is temporarily unavailable. Try again later."
     )
 
 
@@ -433,9 +417,7 @@ def fetch_nearby_attractions(lat, lon, radius_km):
 # ==================================================
 def calculate_road_route(points, optimize=True):
     if len(points) < 2:
-        raise ValueError(
-            "Choose at least one attraction besides the start."
-        )
+        raise ValueError("Select at least one attraction.")
 
     coordinates = ";".join(
         f'{p["lon"]},{p["lat"]}' for p in points
@@ -495,9 +477,7 @@ def calculate_road_route(points, optimize=True):
     data = response.json()
 
     if data.get("code") != "Ok" or not data.get("routes"):
-        raise RuntimeError(
-            data.get("message", "No driving route found.")
-        )
+        raise RuntimeError("No driving route found.")
 
     route = data["routes"][0]
 
@@ -510,7 +490,7 @@ def calculate_road_route(points, optimize=True):
 
 
 # ==================================================
-# BUILD MAP
+# MAP
 # ==================================================
 def build_route_map(points, geometry):
     route_map = folium.Map(
@@ -533,32 +513,18 @@ def build_route_map(points, geometry):
     ).add_to(route_map)
 
     for index, point in enumerate(points):
-        role = point.get("route_role")
-
-        if role == "start" or index == 0:
-            marker_color = "green"
-            marker_icon = "play"
-            role_label = "START"
-
-        elif role == "end" or index == len(points) - 1:
-            marker_color = "red"
-            marker_icon = "flag-checkered"
-            role_label = "END"
-
+        if index == 0:
+            color, icon, label = "green", "play", "START"
+        elif index == len(points) - 1:
+            color, icon, label = "red", "flag-checkered", "END"
         else:
-            marker_color = "blue"
-            marker_icon = "coffee"
-            role_label = "STOP"
+            color, icon, label = "blue", "info-sign", "STOP"
 
         folium.Marker(
             [point["lat"], point["lon"]],
-            tooltip=f"{role_label}: {point['name']}",
-            popup=f"{role_label}: {point['name']}",
-            icon=folium.Icon(
-                color=marker_color,
-                icon=marker_icon,
-                prefix="fa",
-            ),
+            tooltip=f"{label}: {point['name']}",
+            popup=f"{label}: {point['name']}",
+            icon=folium.Icon(color=color, icon=icon),
         ).add_to(route_map)
 
     if len(road_path) > 1:
@@ -568,7 +534,7 @@ def build_route_map(points, geometry):
 
 
 # ==================================================
-# VEHICLE RECOMMENDATION
+# VEHICLE COSTS
 # ==================================================
 def calculate_vehicle_options(
     tourists,
@@ -615,7 +581,7 @@ def calculate_vehicle_options(
     best = df.iloc[0]
 
     recommendation = (
-        f'{best["Vehicle"]}, '
+        f'{best["Vehicle"]}: '
         f'{int(best["Vehicles needed"])} vehicle(s), '
         f'estimated fuel cost ₹'
         f'{best["Estimated fuel cost (INR)"]:,.2f}'
@@ -625,38 +591,7 @@ def calculate_vehicle_options(
 
 
 # ==================================================
-# GRAPH ANALYTICS
-# ==================================================
-def tourism_graph(points):
-    """Build a graph connecting consecutive route locations."""
-
-    graph = nx.Graph()
-
-    for point in points:
-        graph.add_node(point["name"])
-
-    for i in range(len(points) - 1):
-        first = points[i]
-        second = points[i + 1]
-
-        distance = haversine_km(
-            first["lat"],
-            first["lon"],
-            second["lat"],
-            second["lon"],
-        )
-
-        graph.add_edge(
-            first["name"],
-            second["name"],
-            distance_km=distance,
-        )
-
-    return graph
-
-
-# ==================================================
-# SIDEBAR AND HEADER
+# SIDEBAR
 # ==================================================
 st.sidebar.markdown("""
 <div class="hc-brand">
@@ -665,14 +600,6 @@ st.sidebar.markdown("""
     <div class="hc-brand-title">HeritageConnect</div>
     <div class="hc-brand-subtitle">TOURISM INTELLIGENCE</div>
   </div>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown("""
-<div class="hc-hero">
-  <div class="hc-eyebrow">Explore India • Travel smarter</div>
-  <h1>HeritageConnect</h1>
-  <p>Plan heritage journeys, compare travel costs, and discover connections between destinations.</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -686,21 +613,19 @@ page = st.sidebar.radio(
     ],
 )
 
-st.caption(
-    "LIVE MAP DATA · OpenStreetMap and public routing services. "
-    "Please verify road conditions, opening hours, fuel prices, and provider details."
-)
+st.markdown("""
+<div class="hc-hero">
+  <div class="hc-eyebrow">Explore India • Travel smarter</div>
+  <h1>HeritageConnect</h1>
+  <p>Plan heritage journeys, compare travel costs, and discover connections between destinations.</p>
+</div>
+""", unsafe_allow_html=True)
 
 
 # ==================================================
 # SMART TRIP PLANNER
 # ==================================================
 if page == "Smart Trip Planner":
-    st.markdown(
-        '<div class="hc-section-label">PLAN A JOURNEY</div>',
-        unsafe_allow_html=True,
-    )
-
     st.header("Find attractions anywhere in India")
 
     with st.form("place_search"):
@@ -712,9 +637,9 @@ if page == "Smart Trip Planner":
 
         radius_km = st.slider(
             "Search radius (km)",
-            1,
-            100,
-            30,
+            min_value=1,
+            max_value=100,
+            value=30,
         )
 
         search_clicked = st.form_submit_button(
@@ -730,9 +655,8 @@ if page == "Smart Trip Planner":
 
         if not place_query.strip():
             st.error("Enter a starting place.")
-
         else:
-            with st.spinner("Searching map data..."):
+            with st.spinner("Searching for attractions..."):
                 try:
                     origin = geocode_place(place_query)
 
@@ -751,47 +675,41 @@ if page == "Smart Trip Planner":
                         )
                     else:
                         st.warning(
-                            "No named attractions found. "
-                            "Try a larger radius or another place."
+                            "No named attractions found. Try a larger radius."
                         )
 
                 except Exception as error:
                     st.session_state["route_error"] = str(error)
 
-    if (
-        st.session_state["route_error"]
-        and not st.session_state["route_result"]
-    ):
+    if st.session_state["route_error"] and not st.session_state["route_result"]:
         st.error(st.session_state["route_error"])
 
     origin = st.session_state["origin"]
     attractions = st.session_state["attractions"]
 
     if origin and attractions:
-        st.subheader("Select your attractions")
-
+        st.subheader("Available attractions")
         st.write("Starting place:", origin["name"])
 
-        df_attractions = pd.DataFrame([
+        attractions_df = pd.DataFrame([
             {
-                "Attraction": point["name"],
-                "Category": point["category"],
+                "Attraction": p["name"],
+                "Category": p["category"],
                 "Distance from start (km)": round(
                     haversine_km(
                         origin["lat"],
                         origin["lon"],
-                        point["lat"],
-                        point["lon"],
+                        p["lat"],
+                        p["lon"],
                     ),
-                    1,
+                    2,
                 ),
-                "Source": point["source"],
             }
-            for point in attractions
+            for p in attractions
         ])
 
         st.dataframe(
-            df_attractions,
+            attractions_df,
             use_container_width=True,
             hide_index=True,
         )
@@ -812,28 +730,28 @@ if page == "Smart Trip Planner":
         with c1:
             tourists = st.number_input(
                 "Number of tourists",
-                1,
-                500,
-                3,
+                min_value=1,
+                max_value=500,
+                value=3,
             )
 
         with c2:
             petrol = st.number_input(
                 "Petrol price (INR/litre)",
-                1.0,
+                min_value=1.0,
                 value=103.0,
             )
 
         with c3:
             diesel = st.number_input(
                 "Diesel price (INR/litre)",
-                1.0,
+                min_value=1.0,
                 value=91.0,
             )
 
         cng = st.number_input(
             "CNG price (INR/kg)",
-            1.0,
+            min_value=1.0,
             value=85.0,
         )
 
@@ -845,7 +763,6 @@ if page == "Smart Trip Planner":
         if st.button(
             "Analyze map and generate route",
             type="primary",
-            key="generate_route",
         ):
             st.session_state["route_result"] = None
             st.session_state["route_error"] = None
@@ -854,7 +771,6 @@ if page == "Smart Trip Planner":
                 st.session_state["route_error"] = (
                     "Select at least one attraction."
                 )
-
             else:
                 selected_points = [
                     lookup[name] for name in chosen
@@ -864,21 +780,18 @@ if page == "Smart Trip Planner":
                     dict(origin, route_role="start")
                 ]
 
-                points.extend(
-                    dict(
-                        point,
-                        route_role=(
-                            "end"
-                            if i == len(selected_points) - 1
-                            else "stop"
-                        ),
+                for i, point in enumerate(selected_points):
+                    role = (
+                        "end"
+                        if i == len(selected_points) - 1
+                        else "stop"
                     )
-                    for i, point in enumerate(selected_points)
-                )
 
-                with st.spinner(
-                    "Calculating route and fuel costs..."
-                ):
+                    points.append(
+                        dict(point, route_role=role)
+                    )
+
+                with st.spinner("Calculating route and vehicle costs..."):
                     try:
                         ordered, geometry, km, minutes = (
                             calculate_road_route(
@@ -899,42 +812,36 @@ if page == "Smart Trip Planner":
 
                         visit_df = pd.DataFrame([
                             {
-                                "Order": index + 1,
+                                "Order": i + 1,
                                 "Place": point["name"],
                                 "Category": point.get(
-                                    "category",
-                                    "Attraction",
+                                    "category", "Attraction"
                                 ),
                                 "Latitude": point["lat"],
                                 "Longitude": point["lon"],
                             }
-                            for index, point in enumerate(ordered)
+                            for i, point in enumerate(ordered)
                         ])
-
-                        route_map = build_route_map(
-                            ordered,
-                            geometry,
-                        )
 
                         st.session_state["route_result"] = {
                             "points": ordered,
                             "distance": km,
                             "minutes": minutes,
-                            "map": route_map,
+                            "map": build_route_map(
+                                ordered,
+                                geometry,
+                            ),
                             "visit_df": visit_df,
                             "vehicle_df": vehicle_df,
                             "recommendation": recommendation,
                         }
 
                     except Exception as error:
-                        st.session_state["route_error"] = (
-                            f"{type(error).__name__}: {error}"
-                        )
+                        st.session_state["route_error"] = str(error)
 
-    # Display results outside the button block.
     if st.session_state["route_error"]:
         st.error(
-            "Could not generate the route: "
+            "Could not generate route: "
             + st.session_state["route_error"]
         )
 
@@ -969,7 +876,7 @@ if page == "Smart Trip Planner":
             hide_index=True,
         )
 
-        st.subheader("Connected road route")
+        st.subheader("Road route map")
 
         st_folium(
             result["map"],
@@ -980,7 +887,6 @@ if page == "Smart Trip Planner":
         )
 
         st.subheader("Vehicle recommendation")
-
         st.success(result["recommendation"])
 
         st.dataframe(
@@ -991,16 +897,14 @@ if page == "Smart Trip Planner":
 
         st.download_button(
             "Download visit order CSV",
-            result["visit_df"].to_csv(
-                index=False
-            ).encode("utf-8"),
+            result["visit_df"].to_csv(index=False).encode("utf-8"),
             file_name="heritageconnect_visit_order.csv",
             mime="text/csv",
         )
 
         st.caption(
-            "Fuel costs are estimates. Public OSRM routing does "
-            "not guarantee the globally shortest or cheapest trip."
+            "Fuel costs are estimates. Actual costs depend on traffic, "
+            "vehicle condition, fuel prices and road conditions."
         )
 
 
@@ -1019,12 +923,7 @@ elif page == "Guides & Accommodation":
 
     service = st.selectbox(
         "Service type",
-        [
-            "Tour guide",
-            "Hotel",
-            "Homestay",
-            "Transport",
-        ],
+        ["Tour guide", "Hotel", "Homestay", "Transport"],
     )
 
     if st.button("Search on map"):
@@ -1036,16 +935,13 @@ elif page == "Guides & Accommodation":
                 + quote(service + " near " + destination)
             )
 
-            st.markdown(
-                f"[Open current listings]({url})"
-            )
-
+            st.markdown(f"[Open current listings]({url})")
         else:
             st.warning("Enter a destination.")
 
 
 # ==================================================
-# NETWORK ANALYTICS
+# NETWORK ANALYTICS - FIXED
 # ==================================================
 elif page == "Network Analytics":
     st.header("Tourism Network Analytics")
@@ -1053,10 +949,76 @@ elif page == "Network Analytics":
     result = st.session_state["route_result"]
 
     if result:
-        # Build a proximity network from the selected trip locations.
+        points = result["points"]
+
+        # Lower the default threshold so nearby clusters are easier to inspect.
+        threshold_km = st.slider(
+            "Maximum distance for a connection (km)",
+            min_value=1,
+            max_value=50,
+            value=10,
+            step=1,
+            help="Two places connect only if their straight-line distance is within this threshold.",
+        )
+
+        # Show coordinates to identify incorrect or duplicated values.
+        st.subheader("Location coordinates")
+
+        coordinate_df = pd.DataFrame([
+            {
+                "Place": point["name"],
+                "Latitude": round(float(point["lat"]), 6),
+                "Longitude": round(float(point["lon"]), 6),
+            }
+            for point in points
+        ])
+
+        st.dataframe(
+            coordinate_df,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        # Diagnostic table: actual distance between every pair.
+        distance_rows = []
+
+        for i, first in enumerate(points):
+            for second in points[i + 1:]:
+                distance = haversine_km(
+                    first["lat"],
+                    first["lon"],
+                    second["lat"],
+                    second["lon"],
+                )
+
+                distance_rows.append({
+                    "Place A": first["name"],
+                    "Place B": second["name"],
+                    "Distance (km)": round(distance, 3),
+                    "Connected": (
+                        "Yes"
+                        if distance <= threshold_km
+                        else "No"
+                    ),
+                })
+
+        with st.expander(
+            "Inspect pairwise distances",
+            expanded=False,
+        ):
+            if distance_rows:
+                st.dataframe(
+                    pd.DataFrame(distance_rows),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+            else:
+                st.info("At least two locations are required.")
+
+        # Build graph locally; does not depend on analytics.py.
         graph = build_graph(
-            result["points"],
-            max_distance_km=25,
+            points,
+            max_distance_km=threshold_km,
         )
 
         calculated = calculate_metrics(graph)
@@ -1064,45 +1026,26 @@ elif page == "Network Analytics":
         degree = calculated["degree_centrality"]
         between = calculated["betweenness_centrality"]
 
-        metrics = pd.DataFrame([
+        metrics_df = pd.DataFrame([
             {
                 "Place": node,
-                "Degree centrality": round(
-                    degree[node],
-                    3,
-                ),
-                "Betweenness centrality": round(
-                    between[node],
-                    3,
-                ),
+                "Degree centrality": round(degree[node], 3),
+                "Betweenness centrality": round(between[node], 3),
             }
             for node in graph.nodes
         ])
 
-        left, right = st.columns(2)
+        c1, c2, c3, c4 = st.columns(4)
 
-        left.metric(
-            "Graph nodes",
-            graph.number_of_nodes(),
-        )
+        c1.metric("Graph nodes", graph.number_of_nodes())
+        c2.metric("Graph edges", graph.number_of_edges())
+        c3.metric("Network density", round(calculated["density"], 3))
+        c4.metric("Connected groups", len(calculated["components"]))
 
-        right.metric(
-            "Graph edges",
-            graph.number_of_edges(),
-        )
-
-        st.metric(
-            "Network density",
-            round(calculated["density"], 3),
-        )
-
-        st.metric(
-            "Connected groups",
-            len(calculated["components"]),
-        )
+        st.subheader("Centrality metrics")
 
         st.dataframe(
-            metrics,
+            metrics_df,
             use_container_width=True,
             hide_index=True,
         )
@@ -1110,16 +1053,16 @@ elif page == "Network Analytics":
         st.subheader("Network graph")
 
         st.caption(
-            "Each node represents a selected location. Lines connect "
-            "locations within 25 km of one another and show straight-line "
-            "distances. This is a proximity network, not a road network."
+            f"Lines connect locations within {threshold_km} km. "
+            "Distances are calculated from latitude and longitude, "
+            "not driving routes."
         )
 
         nodes = list(graph.nodes)
         count = len(nodes)
 
-        width = 1000
-        height = 520
+        width = 1100
+        height = 600
         cx = width / 2
         cy = height / 2
         rx = width * 0.37
@@ -1156,29 +1099,36 @@ elif page == "Network Analytics":
             'rx="18" fill="#F5F8FC"/>',
         ]
 
-        # Draw edges before nodes.
-        for u, v, data in graph.edges(data=True):
-            x1, y1 = positions[u]
-            x2, y2 = positions[v]
+        # Draw edges first.
+        for first, second, data in graph.edges(data=True):
+            x1, y1 = positions[first]
+            x2, y2 = positions[second]
 
-            distance = data.get("distance_km", 0)
+            # Use the real distance attribute, not a missing key.
+            distance = float(
+                data.get(
+                    "distance_km",
+                    data.get("distance", 0.0),
+                )
+            )
 
-            mx = (x1 + x2) / 2
-            my = (y1 + y2) / 2
+            midpoint_x = (x1 + x2) / 2
+            midpoint_y = (y1 + y2) / 2
 
             svg_parts.append(
                 f'<line x1="{x1:.1f}" y1="{y1:.1f}" '
                 f'x2="{x2:.1f}" y2="{y2:.1f}" '
                 'stroke="#8AA4B8" stroke-width="1.8" '
-                'opacity="0.9"/>'
+                'opacity="0.85"/>'
             )
 
             svg_parts.append(
-                f'<text x="{mx:.1f}" y="{my - 5:.1f}" '
+                f'<text x="{midpoint_x:.1f}" '
+                f'y="{midpoint_y - 5:.1f}" '
                 'text-anchor="middle" '
                 'font-family="Arial,sans-serif" '
                 'font-size="11" fill="#486581">'
-                f'{distance:.1f} km</text>'
+                f'{distance:.2f} km</text>'
             )
 
         # Draw nodes.
@@ -1187,23 +1137,19 @@ elif page == "Network Analytics":
 
             if i == 0:
                 fill, tag = "#15803D", "START"
-            elif i == len(nodes) - 1:
+            elif i == count - 1:
                 fill, tag = "#DC2626", "END"
             else:
                 fill, tag = "#0F766E", "STOP"
 
             label = svg_escape(node)
 
-            short_label = (
-                label
-                if len(label) <= 34
-                else label[:31] + "..."
-            )
+            if len(label) > 36:
+                label = label[:33] + "..."
 
             svg_parts.append(
                 f'<circle cx="{x:.1f}" cy="{y:.1f}" '
-                'r="18" '
-                f'fill="{fill}" '
+                f'r="18" fill="{fill}" '
                 'stroke="#FFFFFF" stroke-width="3"/>'
             )
 
@@ -1212,7 +1158,8 @@ elif page == "Network Analytics":
                 'text-anchor="middle" '
                 'font-family="Arial,sans-serif" '
                 'font-size="10" font-weight="700" '
-                f'fill="#FFFFFF">{i + 1}</text>'
+                'fill="#FFFFFF">'
+                f'{i + 1}</text>'
             )
 
             label_y = (
@@ -1227,24 +1174,22 @@ elif page == "Network Analytics":
                 'font-family="Arial,sans-serif" '
                 'font-size="12" font-weight="600" '
                 'fill="#102A43">'
-                f'{short_label}</text>'
+                f'{label}</text>'
             )
 
             svg_parts.append(
                 f'<text x="{x:.1f}" y="{label_y + 14:.1f}" '
                 'text-anchor="middle" '
                 'font-family="Arial,sans-serif" '
-                'font-size="9" '
-                f'fill="{fill}">{tag}</text>'
+                'font-size="9" fill="{fill}">'
+                f'{tag}</text>'
             )
 
         svg_parts.append("</svg>")
 
-        svg_markup = "".join(svg_parts)
-
         st.components.v1.html(
-            svg_markup,
-            height=540,
+            "".join(svg_parts),
+            height=620,
             scrolling=True,
         )
 
@@ -1299,9 +1244,7 @@ elif page == "Community Issues":
 
         details = st.text_area("Description")
 
-        submitted = st.form_submit_button(
-            "Validate report"
-        )
+        submitted = st.form_submit_button("Validate report")
 
         if submitted:
             if location.strip() and details.strip():
