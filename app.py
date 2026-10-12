@@ -570,22 +570,32 @@ def calculate_vehicle_options(
 # GRAPH ANALYTICS
 # ==================================================
 def tourism_graph(points):
+    """Build a route graph using only consecutive stops in the selected route.
+
+    A complete graph connects every place to every other place. That makes
+    degree centrality 1 for every node and betweenness centrality 0, which
+    hides the importance of intermediate stops. This graph instead represents
+    the selected trip sequence: each stop connects to the previous and next
+    stop only.
+    """
     graph = nx.Graph()
 
     for point in points:
         graph.add_node(point["name"])
 
-    for i in range(len(points)):
-        for j in range(i + 1, len(points)):
-            distance = haversine_km(
-                points[i]["lat"], points[i]["lon"],
-                points[j]["lat"], points[j]["lon"],
-            )
-            graph.add_edge(
-                points[i]["name"],
-                points[j]["name"],
-                distance_km=distance,
-            )
+    # Connect only consecutive locations in the actual selected route order.
+    for i in range(len(points) - 1):
+        first = points[i]
+        second = points[i + 1]
+        distance = haversine_km(
+            first["lat"], first["lon"],
+            second["lat"], second["lon"],
+        )
+        graph.add_edge(
+            first["name"],
+            second["name"],
+            distance_km=distance,
+        )
 
     return graph
 
@@ -923,8 +933,8 @@ elif page == "Network Analytics":
 
         st.subheader("Network graph")
         st.caption(
-            "Each node is a route location. Lines connect locations and "
-            "show straight-line distances, not road distances."
+            "Each node is a route location. Lines connect consecutive stops in the "
+            "selected route and show straight-line segment distances."
         )
 
         # Draw the graph directly as SVG so it is visible without a Graphviz install.
@@ -1003,8 +1013,8 @@ elif page == "Network Analytics":
         st.components.v1.html(svg_markup, height=540, scrolling=True)
 
         st.caption(
-            "This graph represents the selected trip locations, not a complete "
-            "street-by-street road network."
+            "This is a route-sequence graph, not a complete street-by-street road network. "
+            "Intermediate stops can have higher centrality because they connect route segments."
         )
     else:
         st.info("Generate a trip first to view its graph analytics.")
