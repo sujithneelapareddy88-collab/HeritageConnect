@@ -1,8 +1,8 @@
-
 import math
 import requests
 import pandas as pd
 import networkx as nx
+from analytics import build_graph, calculate_metrics
 import streamlit as st
 import folium
 from streamlit_folium import st_folium
@@ -15,7 +15,6 @@ st.set_page_config(
     page_icon="🏛️",
     layout="wide",
 )
-
 
 # ==================================================
 # PROFESSIONAL UI THEME
@@ -161,7 +160,7 @@ div[data-testid="stAlert"] {
 hr {
     border-color: #DCE6EF;
 }
-/* High-contrast widget colors: readable text on light fields */
+/* High-contrast widget colors */
 [data-testid="stTextInput"] input,
 [data-testid="stNumberInput"] input,
 [data-testid="stTextArea"] textarea {
@@ -234,11 +233,14 @@ hr {
 """, unsafe_allow_html=True)
 
 NOMINATIM = "https://nominatim.openstreetmap.org/search"
+
 OVERPASS_SERVERS = [
     "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
 ]
+
 OSRM = "https://router.project-osrm.org"
+
 HEADERS = {
     "User-Agent": "HeritageConnectEducationalProject/1.0"
 }
@@ -262,16 +264,20 @@ for key, value in {
 # ==================================================
 def haversine_km(lat1, lon1, lat2, lon2):
     radius = 6371.0
+
     lat1, lon1, lat2, lon2 = map(
         math.radians, [lat1, lon1, lat2, lon2]
     )
+
     dlat = lat2 - lat1
     dlon = lon2 - lon1
+
     a = (
         math.sin(dlat / 2) ** 2
         + math.cos(lat1) * math.cos(lat2)
         * math.sin(dlon / 2) ** 2
     )
+
     return 2 * radius * math.asin(
         min(1, math.sqrt(a))
     )
@@ -292,6 +298,7 @@ def geocode_place(query):
         headers=HEADERS,
         timeout=20,
     )
+
     response.raise_for_status()
     results = response.json()
 
@@ -302,6 +309,7 @@ def geocode_place(query):
         )
 
     place = results[0]
+
     return {
         "name": place["display_name"],
         "lat": float(place["lat"]),
@@ -311,24 +319,22 @@ def geocode_place(query):
 
 
 # ==================================================
-# NEARBY ATTRACTIONS: UP TO 100 KM
+# NEARBY ATTRACTIONS
 # ==================================================
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_nearby_attractions(lat, lon, radius_km):
-    """Fetch and cache nearby attractions, with smaller-radius fallbacks.
+    """Fetch and cache nearby attractions, with smaller-radius fallbacks."""
 
-    Public Overpass servers are community services and can be unavailable.
-    Successful searches are cached for one hour to reduce repeated requests.
-    """
     requested_radius = max(1, int(radius_km))
+
     radii = list(dict.fromkeys(
         [requested_radius]
         + [r for r in (10, 5, 2) if r < requested_radius]
     ))
-    errors = []
 
     for radius in radii:
         radius_m = int(radius * 1000)
+
         query = f"""
         [out:json][timeout:12];
         (
@@ -348,14 +354,17 @@ def fetch_nearby_attractions(lat, lon, radius_km):
                     headers=HEADERS,
                     timeout=15,
                 )
+
                 response.raise_for_status()
                 elements = response.json().get("elements", [])
 
                 found = []
                 seen = set()
+
                 for item in elements:
                     tags = item.get("tags", {})
                     name = tags.get("name") or tags.get("name:en")
+
                     if not name:
                         continue
 
@@ -366,14 +375,24 @@ def fetch_nearby_attractions(lat, lon, radius_km):
                         center = item.get("center", {})
                         p_lat = center.get("lat")
                         p_lon = center.get("lon")
+
                     if p_lat is None or p_lon is None:
                         continue
 
-                    p_lat, p_lon = float(p_lat), float(p_lon)
-                    identity = (name.strip().lower(), round(p_lat, 5), round(p_lon, 5))
+                    p_lat = float(p_lat)
+                    p_lon = float(p_lon)
+
+                    identity = (
+                        name.strip().lower(),
+                        round(p_lat, 5),
+                        round(p_lon, 5),
+                    )
+
                     if identity in seen:
                         continue
+
                     seen.add(identity)
+
                     found.append({
                         "name": str(name).strip(),
                         "lat": p_lat,
@@ -383,20 +402,29 @@ def fetch_nearby_attractions(lat, lon, radius_km):
                             or tags.get("historic")
                             or tags.get("heritage")
                             or "Attraction"
-                        ).replace("_", " " ).title(),
+                        ).replace("_", " ").title(),
                         "source": "OpenStreetMap",
                     })
 
-                found.sort(key=lambda p: haversine_km(lat, lon, p["lat"], p["lon"]))
-                # Return results from the first successful radius/server.
+                found.sort(
+                    key=lambda p: haversine_km(
+                        lat, lon, p["lat"], p["lon"]
+                    )
+                )
+
                 return found
-            except (requests.RequestException, ValueError, KeyError, TypeError) as error:
-                errors.append(f"{server} ({radius} km): {str(error)[:100]}")
+
+            except (
+                requests.RequestException,
+                ValueError,
+                KeyError,
+                TypeError,
+            ):
+                continue
 
     raise RuntimeError(
-        "Nearby attraction data is temporarily unavailable from the public map servers. "
-        "Your website is running, but this external service is not responding. "
-        "Please wait a little and try again; successful searches are cached for one hour."
+        "Nearby attraction data is temporarily unavailable from "
+        "the public map servers. Please wait and try again."
     )
 
 
@@ -426,18 +454,21 @@ def calculate_road_route(points, optimize=True):
                 },
                 timeout=60,
             )
+
             response.raise_for_status()
             data = response.json()
 
             if data.get("code") == "Ok" and data.get("trips"):
                 trip = data["trips"][0]
                 waypoints = data.get("waypoints", [])
+
                 order = sorted(
                     range(len(points)),
                     key=lambda i: waypoints[i].get(
                         "waypoint_index", i
                     ),
                 )
+
                 ordered = [points[i] for i in order]
 
                 return (
@@ -446,8 +477,8 @@ def calculate_road_route(points, optimize=True):
                     trip["distance"] / 1000,
                     trip["duration"] / 60,
                 )
+
         except Exception:
-            # Try normal sequential routing below.
             pass
 
     response = requests.get(
@@ -459,6 +490,7 @@ def calculate_road_route(points, optimize=True):
         },
         timeout=60,
     )
+
     response.raise_for_status()
     data = response.json()
 
@@ -468,6 +500,7 @@ def calculate_road_route(points, optimize=True):
         )
 
     route = data["routes"][0]
+
     return (
         points,
         route["geometry"]["coordinates"],
@@ -477,7 +510,7 @@ def calculate_road_route(points, optimize=True):
 
 
 # ==================================================
-# BUILD MAP ONCE PER GENERATED ROUTE
+# BUILD MAP
 # ==================================================
 def build_route_map(points, geometry):
     route_map = folium.Map(
@@ -501,18 +534,31 @@ def build_route_map(points, geometry):
 
     for index, point in enumerate(points):
         role = point.get("route_role")
+
         if role == "start" or index == 0:
-            marker_color, marker_icon, role_label = "green", "play", "START"
+            marker_color = "green"
+            marker_icon = "play"
+            role_label = "START"
+
         elif role == "end" or index == len(points) - 1:
-            marker_color, marker_icon, role_label = "red", "flag-checkered", "END"
+            marker_color = "red"
+            marker_icon = "flag-checkered"
+            role_label = "END"
+
         else:
-            marker_color, marker_icon, role_label = "blue", "coffee", "STOP"
+            marker_color = "blue"
+            marker_icon = "coffee"
+            role_label = "STOP"
 
         folium.Marker(
             [point["lat"], point["lon"]],
             tooltip=f"{role_label}: {point['name']}",
             popup=f"{role_label}: {point['name']}",
-            icon=folium.Icon(color=marker_color, icon=marker_icon, prefix="fa"),
+            icon=folium.Icon(
+                color=marker_color,
+                icon=marker_icon,
+                prefix="fa",
+            ),
         ).add_to(route_map)
 
     if len(road_path) > 1:
@@ -525,8 +571,11 @@ def build_route_map(points, geometry):
 # VEHICLE RECOMMENDATION
 # ==================================================
 def calculate_vehicle_options(
-    tourists, distance_km, petrol_price,
-    diesel_price, cng_price
+    tourists,
+    distance_km,
+    petrol_price,
+    diesel_price,
+    cng_price,
 ):
     fleet = [
         ("Auto-rickshaw", 3, "CNG", 25, cng_price),
@@ -537,9 +586,16 @@ def calculate_vehicle_options(
     ]
 
     rows = []
+
     for name, capacity, fuel, mileage, price in fleet:
         vehicles = math.ceil(tourists / capacity)
-        cost = vehicles * (distance_km / mileage) * price
+
+        cost = (
+            vehicles
+            * (distance_km / mileage)
+            * price
+        )
+
         rows.append({
             "Vehicle": name,
             "Fuel": fuel,
@@ -555,6 +611,7 @@ def calculate_vehicle_options(
     df = pd.DataFrame(rows).sort_values(
         "Estimated fuel cost (INR)"
     )
+
     best = df.iloc[0]
 
     recommendation = (
@@ -563,6 +620,7 @@ def calculate_vehicle_options(
         f'estimated fuel cost ₹'
         f'{best["Estimated fuel cost (INR)"]:,.2f}'
     )
+
     return df, recommendation
 
 
@@ -570,27 +628,24 @@ def calculate_vehicle_options(
 # GRAPH ANALYTICS
 # ==================================================
 def tourism_graph(points):
-    """Build a route graph using only consecutive stops in the selected route.
+    """Build a graph connecting consecutive route locations."""
 
-    A complete graph connects every place to every other place. That makes
-    degree centrality 1 for every node and betweenness centrality 0, which
-    hides the importance of intermediate stops. This graph instead represents
-    the selected trip sequence: each stop connects to the previous and next
-    stop only.
-    """
     graph = nx.Graph()
 
     for point in points:
         graph.add_node(point["name"])
 
-    # Connect only consecutive locations in the actual selected route order.
     for i in range(len(points) - 1):
         first = points[i]
         second = points[i + 1]
+
         distance = haversine_km(
-            first["lat"], first["lon"],
-            second["lat"], second["lon"],
+            first["lat"],
+            first["lon"],
+            second["lat"],
+            second["lon"],
         )
+
         graph.add_edge(
             first["name"],
             second["name"],
@@ -601,7 +656,7 @@ def tourism_graph(points):
 
 
 # ==================================================
-# MAIN DASHBOARD
+# SIDEBAR AND HEADER
 # ==================================================
 st.sidebar.markdown("""
 <div class="hc-brand">
@@ -638,10 +693,14 @@ st.caption(
 
 
 # ==================================================
-# TRIP PLANNER
+# SMART TRIP PLANNER
 # ==================================================
 if page == "Smart Trip Planner":
-    st.markdown('<div class="hc-section-label">PLAN A JOURNEY</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="hc-section-label">PLAN A JOURNEY</div>',
+        unsafe_allow_html=True,
+    )
+
     st.header("Find attractions anywhere in India")
 
     with st.form("place_search"):
@@ -650,10 +709,14 @@ if page == "Smart Trip Planner":
             value=st.session_state["search_place"],
             placeholder="e.g. Tirupati, Jaipur, Mysuru Palace",
         )
+
         radius_km = st.slider(
             "Search radius (km)",
-            1, 100, 30,
+            1,
+            100,
+            30,
         )
+
         search_clicked = st.form_submit_button(
             "Find nearby attractions"
         )
@@ -667,13 +730,18 @@ if page == "Smart Trip Planner":
 
         if not place_query.strip():
             st.error("Enter a starting place.")
+
         else:
             with st.spinner("Searching map data..."):
                 try:
                     origin = geocode_place(place_query)
+
                     attractions = fetch_nearby_attractions(
-                        origin["lat"], origin["lon"], radius_km
+                        origin["lat"],
+                        origin["lon"],
+                        radius_km,
                     )
+
                     st.session_state["origin"] = origin
                     st.session_state["attractions"] = attractions
 
@@ -686,10 +754,14 @@ if page == "Smart Trip Planner":
                             "No named attractions found. "
                             "Try a larger radius or another place."
                         )
+
                 except Exception as error:
                     st.session_state["route_error"] = str(error)
 
-    if st.session_state["route_error"] and not st.session_state["route_result"]:
+    if (
+        st.session_state["route_error"]
+        and not st.session_state["route_result"]
+    ):
         st.error(st.session_state["route_error"])
 
     origin = st.session_state["origin"]
@@ -702,25 +774,33 @@ if page == "Smart Trip Planner":
 
         df_attractions = pd.DataFrame([
             {
-                "Attraction": p["name"],
-                "Category": p["category"],
+                "Attraction": point["name"],
+                "Category": point["category"],
                 "Distance from start (km)": round(
                     haversine_km(
-                        origin["lat"], origin["lon"],
-                        p["lat"], p["lon"],
-                    ), 1
+                        origin["lat"],
+                        origin["lon"],
+                        point["lat"],
+                        point["lon"],
+                    ),
+                    1,
                 ),
-                "Source": p["source"],
+                "Source": point["source"],
             }
-            for p in attractions
+            for point in attractions
         ])
+
         st.dataframe(
             df_attractions,
             use_container_width=True,
             hide_index=True,
         )
 
-        lookup = {p["name"]: p for p in attractions}
+        lookup = {
+            point["name"]: point
+            for point in attractions
+        }
+
         chosen = st.multiselect(
             "Choose places to visit",
             options=list(lookup.keys()),
@@ -728,24 +808,38 @@ if page == "Smart Trip Planner":
         )
 
         c1, c2, c3 = st.columns(3)
+
         with c1:
             tourists = st.number_input(
-                "Number of tourists", 1, 500, 3
+                "Number of tourists",
+                1,
+                500,
+                3,
             )
+
         with c2:
             petrol = st.number_input(
-                "Petrol price (INR/litre)", 1.0, value=103.0
+                "Petrol price (INR/litre)",
+                1.0,
+                value=103.0,
             )
+
         with c3:
             diesel = st.number_input(
-                "Diesel price (INR/litre)", 1.0, value=91.0
+                "Diesel price (INR/litre)",
+                1.0,
+                value=91.0,
             )
 
         cng = st.number_input(
-            "CNG price (INR/kg)", 1.0, value=85.0
+            "CNG price (INR/kg)",
+            1.0,
+            value=85.0,
         )
+
         optimize = st.checkbox(
-            "Optimize visit order", value=True
+            "Optimize visit order",
+            value=True,
         )
 
         if st.button(
@@ -760,35 +854,56 @@ if page == "Smart Trip Planner":
                 st.session_state["route_error"] = (
                     "Select at least one attraction."
                 )
+
             else:
-                # Preserve the existing UI. The searched location is START,
-                # the last selected attraction is END, and selected attractions
-                # between them are intermediate/resting stops on the MAP only.
-                selected_points = [lookup[name] for name in chosen]
-                points = [dict(origin, route_role="start")]
+                selected_points = [
+                    lookup[name] for name in chosen
+                ]
+
+                points = [
+                    dict(origin, route_role="start")
+                ]
+
                 points.extend(
-                    dict(point, route_role=("end" if i == len(selected_points) - 1 else "stop"))
+                    dict(
+                        point,
+                        route_role=(
+                            "end"
+                            if i == len(selected_points) - 1
+                            else "stop"
+                        ),
+                    )
                     for i, point in enumerate(selected_points)
                 )
 
-                with st.spinner("Calculating route and fuel costs..."):
+                with st.spinner(
+                    "Calculating route and fuel costs..."
+                ):
                     try:
                         ordered, geometry, km, minutes = (
-                            calculate_road_route(points, optimize)
+                            calculate_road_route(
+                                points,
+                                optimize,
+                            )
                         )
+
                         vehicle_df, recommendation = (
                             calculate_vehicle_options(
-                                int(tourists), km,
-                                petrol, diesel, cng,
+                                int(tourists),
+                                km,
+                                petrol,
+                                diesel,
+                                cng,
                             )
                         )
 
                         visit_df = pd.DataFrame([
                             {
-                                "Order": index,
+                                "Order": index + 1,
                                 "Place": point["name"],
                                 "Category": point.get(
-                                    "category", "Attraction"
+                                    "category",
+                                    "Attraction",
                                 ),
                                 "Latitude": point["lat"],
                                 "Longitude": point["lon"],
@@ -796,12 +911,11 @@ if page == "Smart Trip Planner":
                             for index, point in enumerate(ordered)
                         ])
 
-                        # Build map ONCE, then store it.
                         route_map = build_route_map(
-                            ordered, geometry
+                            ordered,
+                            geometry,
                         )
 
-                        # Save complete results in session state.
                         st.session_state["route_result"] = {
                             "points": ordered,
                             "distance": km,
@@ -817,7 +931,7 @@ if page == "Smart Trip Planner":
                             f"{type(error).__name__}: {error}"
                         )
 
-    # Render results outside the button block.
+    # Display results outside the button block.
     if st.session_state["route_error"]:
         st.error(
             "Could not generate the route: "
@@ -831,11 +945,24 @@ if page == "Smart Trip Planner":
         st.header("Route summary")
 
         a, b, c = st.columns(3)
-        a.metric("Driving distance", f'{result["distance"]:.1f} km')
-        b.metric("Estimated driving time", f'{result["minutes"]:.0f} min')
-        c.metric("Attractions", str(len(result["points"]) - 1))
+
+        a.metric(
+            "Driving distance",
+            f'{result["distance"]:.1f} km',
+        )
+
+        b.metric(
+            "Estimated driving time",
+            f'{result["minutes"]:.0f} min',
+        )
+
+        c.metric(
+            "Attractions",
+            str(len(result["points"]) - 1),
+        )
 
         st.subheader("Visit order")
+
         st.dataframe(
             result["visit_df"],
             use_container_width=True,
@@ -844,8 +971,6 @@ if page == "Smart Trip Planner":
 
         st.subheader("Connected road route")
 
-        # Stable key + no returned interaction objects helps avoid
-        # rerun loops caused by map interactions.
         st_folium(
             result["map"],
             height=720,
@@ -855,7 +980,9 @@ if page == "Smart Trip Planner":
         )
 
         st.subheader("Vehicle recommendation")
+
         st.success(result["recommendation"])
+
         st.dataframe(
             result["vehicle_df"],
             use_container_width=True,
@@ -864,7 +991,9 @@ if page == "Smart Trip Planner":
 
         st.download_button(
             "Download visit order CSV",
-            result["visit_df"].to_csv(index=False).encode("utf-8"),
+            result["visit_df"].to_csv(
+                index=False
+            ).encode("utf-8"),
             file_name="heritageconnect_visit_order.csv",
             mime="text/csv",
         )
@@ -880,25 +1009,37 @@ if page == "Smart Trip Planner":
 # ==================================================
 elif page == "Guides & Accommodation":
     st.header("Guides & Accommodation")
+
     st.info(
         "Demo directory only. It does not verify availability "
         "or make real bookings."
     )
 
     destination = st.text_input("Destination")
+
     service = st.selectbox(
         "Service type",
-        ["Tour guide", "Hotel", "Homestay", "Transport"],
+        [
+            "Tour guide",
+            "Hotel",
+            "Homestay",
+            "Transport",
+        ],
     )
 
     if st.button("Search on map"):
         if destination.strip():
             from urllib.parse import quote
+
             url = (
                 "https://www.google.com/maps/search/"
                 + quote(service + " near " + destination)
             )
-            st.markdown(f"[Open current listings]({url})")
+
+            st.markdown(
+                f"[Open current listings]({url})"
+            )
+
         else:
             st.warning("Enter a destination.")
 
@@ -908,122 +1049,234 @@ elif page == "Guides & Accommodation":
 # ==================================================
 elif page == "Network Analytics":
     st.header("Tourism Network Analytics")
+
     result = st.session_state["route_result"]
 
     if result:
-        graph = tourism_graph(result["points"])
-        degree = nx.degree_centrality(graph)
-        between = nx.betweenness_centrality(
-            graph, weight="distance_km"
+        # Build a proximity network from the selected trip locations.
+        graph = build_graph(
+            result["points"],
+            max_distance_km=25,
         )
+
+        calculated = calculate_metrics(graph)
+
+        degree = calculated["degree_centrality"]
+        between = calculated["betweenness_centrality"]
 
         metrics = pd.DataFrame([
             {
                 "Place": node,
-                "Degree centrality": round(degree[node], 3),
-                "Betweenness centrality": round(between[node], 3),
+                "Degree centrality": round(
+                    degree[node],
+                    3,
+                ),
+                "Betweenness centrality": round(
+                    between[node],
+                    3,
+                ),
             }
             for node in graph.nodes
         ])
 
         left, right = st.columns(2)
-        left.metric("Graph nodes", graph.number_of_nodes())
-        right.metric("Graph edges", graph.number_of_edges())
-        st.dataframe(metrics, use_container_width=True, hide_index=True)
 
-        st.subheader("Network graph")
-        st.caption(
-            "Each node is a route location. Lines connect consecutive stops in the "
-            "selected route and show straight-line segment distances."
+        left.metric(
+            "Graph nodes",
+            graph.number_of_nodes(),
         )
 
-        # Draw the graph directly as SVG so it is visible without a Graphviz install.
+        right.metric(
+            "Graph edges",
+            graph.number_of_edges(),
+        )
+
+        st.metric(
+            "Network density",
+            round(calculated["density"], 3),
+        )
+
+        st.metric(
+            "Connected groups",
+            len(calculated["components"]),
+        )
+
+        st.dataframe(
+            metrics,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.subheader("Network graph")
+
+        st.caption(
+            "Each node represents a selected location. Lines connect "
+            "locations within 25 km of one another and show straight-line "
+            "distances. This is a proximity network, not a road network."
+        )
+
         nodes = list(graph.nodes)
         count = len(nodes)
-        width, height = 1000, 520
-        cx, cy = width / 2, height / 2
-        rx, ry = width * 0.37, height * 0.34
+
+        width = 1000
+        height = 520
+        cx = width / 2
+        cy = height / 2
+        rx = width * 0.37
+        ry = height * 0.34
+
         positions = {}
+
         for i, node in enumerate(nodes):
-            angle = (-math.pi / 2) + (2 * math.pi * i / max(count, 1))
-            positions[node] = (cx + rx * math.cos(angle), cy + ry * math.sin(angle))
+            angle = (
+                -math.pi / 2
+                + 2 * math.pi * i / max(count, 1)
+            )
+
+            positions[node] = (
+                cx + rx * math.cos(angle),
+                cy + ry * math.sin(angle),
+            )
 
         def svg_escape(value):
-            return (str(value).replace("&", "&amp;")
-                    .replace("<", "&lt;").replace(">", "&gt;")
-                    .replace('"', "&quot;"))
+            return (
+                str(value)
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace('"', "&quot;")
+            )
 
         svg_parts = [
-            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
-            f'width="100%" role="img" aria-label="Tourism network graph">',
-            '<rect width="100%" height="100%" rx="18" fill="#F5F8FC"/>'
+            f'<svg xmlns="http://www.w3.org/2000/svg" '
+            f'viewBox="0 0 {width} {height}" '
+            f'width="100%" role="img" '
+            f'aria-label="Tourism network graph">',
+            '<rect width="100%" height="100%" '
+            'rx="18" fill="#F5F8FC"/>',
         ]
 
-        # Draw edges first so they sit behind nodes.
+        # Draw edges before nodes.
         for u, v, data in graph.edges(data=True):
             x1, y1 = positions[u]
             x2, y2 = positions[v]
+
             distance = data.get("distance_km", 0)
-            mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+
+            mx = (x1 + x2) / 2
+            my = (y1 + y2) / 2
+
             svg_parts.append(
-                f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" '
-                'stroke="#8AA4B8" stroke-width="1.8" opacity="0.9"/>'
+                f'<line x1="{x1:.1f}" y1="{y1:.1f}" '
+                f'x2="{x2:.1f}" y2="{y2:.1f}" '
+                'stroke="#8AA4B8" stroke-width="1.8" '
+                'opacity="0.9"/>'
             )
+
             svg_parts.append(
-                f'<text x="{mx:.1f}" y="{my - 5:.1f}" text-anchor="middle" '
-                'font-family="Arial,sans-serif" font-size="11" fill="#486581">'
+                f'<text x="{mx:.1f}" y="{my - 5:.1f}" '
+                'text-anchor="middle" '
+                'font-family="Arial,sans-serif" '
+                'font-size="11" fill="#486581">'
                 f'{distance:.1f} km</text>'
             )
 
+        # Draw nodes.
         for i, node in enumerate(nodes):
             x, y = positions[node]
+
             if i == 0:
                 fill, tag = "#15803D", "START"
             elif i == len(nodes) - 1:
                 fill, tag = "#DC2626", "END"
             else:
                 fill, tag = "#0F766E", "STOP"
+
             label = svg_escape(node)
-            # Long OSM names are clipped to keep the graph readable.
-            short_label = label if len(label) <= 34 else label[:31] + "..."
+
+            short_label = (
+                label
+                if len(label) <= 34
+                else label[:31] + "..."
+            )
+
             svg_parts.append(
-                f'<circle cx="{x:.1f}" cy="{y:.1f}" r="18" fill="{fill}" '
+                f'<circle cx="{x:.1f}" cy="{y:.1f}" '
+                'r="18" '
+                f'fill="{fill}" '
                 'stroke="#FFFFFF" stroke-width="3"/>'
             )
+
             svg_parts.append(
-                f'<text x="{x:.1f}" y="{y + 4:.1f}" text-anchor="middle" '
-                'font-family="Arial,sans-serif" font-size="10" font-weight="700" '
+                f'<text x="{x:.1f}" y="{y + 4:.1f}" '
+                'text-anchor="middle" '
+                'font-family="Arial,sans-serif" '
+                'font-size="10" font-weight="700" '
                 f'fill="#FFFFFF">{i + 1}</text>'
             )
-            label_y = y + (35 if y < height * 0.78 else -29)
+
+            label_y = (
+                y + 35
+                if y < height * 0.78
+                else y - 29
+            )
+
             svg_parts.append(
-                f'<text x="{x:.1f}" y="{label_y:.1f}" text-anchor="middle" '
-                'font-family="Arial,sans-serif" font-size="12" font-weight="600" '
+                f'<text x="{x:.1f}" y="{label_y:.1f}" '
+                'text-anchor="middle" '
+                'font-family="Arial,sans-serif" '
+                'font-size="12" font-weight="600" '
                 'fill="#102A43">'
                 f'{short_label}</text>'
             )
+
             svg_parts.append(
-                f'<text x="{x:.1f}" y="{label_y + 14:.1f}" text-anchor="middle" '
-                f'font-family="Arial,sans-serif" font-size="9" fill="{fill}">'
-                f'{tag}</text>'
+                f'<text x="{x:.1f}" y="{label_y + 14:.1f}" '
+                'text-anchor="middle" '
+                'font-family="Arial,sans-serif" '
+                'font-size="9" '
+                f'fill="{fill}">{tag}</text>'
             )
 
         svg_parts.append("</svg>")
+
         svg_markup = "".join(svg_parts)
-        st.components.v1.html(svg_markup, height=540, scrolling=True)
+
+        st.components.v1.html(
+            svg_markup,
+            height=540,
+            scrolling=True,
+        )
+
+        st.subheader("Connected components")
+
+        for index, component in enumerate(
+            calculated["components"],
+            start=1,
+        ):
+            st.write(
+                f"**Group {index}:** "
+                + ", ".join(sorted(component))
+            )
 
         st.caption(
-            "This is a route-sequence graph, not a complete street-by-street road network. "
-            "Intermediate stops can have higher centrality because they connect route segments."
+            "Degree centrality measures direct connections. "
+            "Betweenness centrality measures how often a location "
+            "lies on shortest paths between other locations."
         )
+
     else:
-        st.info("Generate a trip first to view its graph analytics.")
+        st.info(
+            "Generate a trip first to view its graph analytics."
+        )
+
 
 # ==================================================
 # COMMUNITY ISSUES
 # ==================================================
 elif page == "Community Issues":
     st.header("Community Tourism Issues")
+
     st.warning(
         "Prototype form only. Reports are not saved or sent "
         "to authorities."
@@ -1031,6 +1284,7 @@ elif page == "Community Issues":
 
     with st.form("community_issue"):
         location = st.text_input("Location")
+
         issue = st.selectbox(
             "Issue type",
             [
@@ -1042,8 +1296,12 @@ elif page == "Community Issues":
                 "Other",
             ],
         )
+
         details = st.text_area("Description")
-        submitted = st.form_submit_button("Validate report")
+
+        submitted = st.form_submit_button(
+            "Validate report"
+        )
 
         if submitted:
             if location.strip() and details.strip():
@@ -1052,9 +1310,13 @@ elif page == "Community Issues":
                     "nothing was permanently submitted."
                 )
             else:
-                st.error("Enter the location and issue description.")
+                st.error(
+                    "Enter the location and issue description."
+                )
+
 
 st.divider()
+
 st.caption(
     "HeritageConnect educational prototype • "
     "Map data © OpenStreetMap contributors"
