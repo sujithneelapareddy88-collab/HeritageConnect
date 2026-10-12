@@ -313,90 +313,90 @@ def geocode_place(query):
 # ==================================================
 # NEARBY ATTRACTIONS: UP TO 100 KM
 # ==================================================
+@st.cache_data(ttl=3600, show_spinner=False)
 def fetch_nearby_attractions(lat, lon, radius_km):
-    radius_m = int(radius_km * 1000)
+    """Fetch and cache nearby attractions, with smaller-radius fallbacks.
 
-    query = f"""
-    [out:json][timeout:45];
-    (
-      nwr(around:{radius_m},{lat},{lon})
-        ["tourism"~"attraction|museum|viewpoint|artwork|zoo|gallery|theme_park|aquarium"];
-      nwr(around:{radius_m},{lat},{lon})["historic"];
-      nwr(around:{radius_m},{lat},{lon})["heritage"];
-    );
-    out center tags;
+    Public Overpass servers are community services and can be unavailable.
+    Successful searches are cached for one hour to reduce repeated requests.
     """
-
+    requested_radius = max(1, int(radius_km))
+    radii = list(dict.fromkeys(
+        [requested_radius]
+        + [r for r in (10, 5, 2) if r < requested_radius]
+    ))
     errors = []
 
-    for server in OVERPASS_SERVERS:
-        try:
-            response = requests.post(
-                server,
-                data={"data": query},
-                headers=HEADERS,
-                timeout=65,
-            )
-            response.raise_for_status()
-            elements = response.json().get("elements", [])
+    for radius in radii:
+        radius_m = int(radius * 1000)
+        query = f"""
+        [out:json][timeout:12];
+        (
+          nwr(around:{radius_m},{lat},{lon})
+            ["tourism"~"attraction|museum|viewpoint|artwork|zoo|gallery|theme_park|aquarium"];
+          nwr(around:{radius_m},{lat},{lon})["historic"];
+          nwr(around:{radius_m},{lat},{lon})["heritage"];
+        );
+        out center tags;
+        """
 
-            found = []
-            seen = set()
-
-            for item in elements:
-                tags = item.get("tags", {})
-                name = tags.get("name") or tags.get("name:en")
-                if not name:
-                    continue
-
-                if item["type"] == "node":
-                    p_lat = item.get("lat")
-                    p_lon = item.get("lon")
-                else:
-                    center = item.get("center", {})
-                    p_lat = center.get("lat")
-                    p_lon = center.get("lon")
-
-                if p_lat is None or p_lon is None:
-                    continue
-
-                p_lat, p_lon = float(p_lat), float(p_lon)
-                identity = (
-                    name.strip().lower(),
-                    round(p_lat, 5),
-                    round(p_lon, 5),
+        for server in OVERPASS_SERVERS:
+            try:
+                response = requests.post(
+                    server,
+                    data={"data": query},
+                    headers=HEADERS,
+                    timeout=15,
                 )
-                if identity in seen:
-                    continue
-                seen.add(identity)
+                response.raise_for_status()
+                elements = response.json().get("elements", [])
 
-                found.append({
-                    "name": str(name),
-                    "lat": p_lat,
-                    "lon": p_lon,
-                    "category": str(
-                        tags.get("tourism")
-                        or tags.get("historic")
-                        or tags.get("heritage")
-                        or "Attraction"
-                    ),
-                    "source": "OpenStreetMap",
-                })
+                found = []
+                seen = set()
+                for item in elements:
+                    tags = item.get("tags", {})
+                    name = tags.get("name") or tags.get("name:en")
+                    if not name:
+                        continue
 
-            found.sort(
-                key=lambda p: haversine_km(
-                    lat, lon, p["lat"], p["lon"]
-                )
-            )
-            return found
+                    if item.get("type") == "node":
+                        p_lat = item.get("lat")
+                        p_lon = item.get("lon")
+                    else:
+                        center = item.get("center", {})
+                        p_lat = center.get("lat")
+                        p_lon = center.get("lon")
+                    if p_lat is None or p_lon is None:
+                        continue
 
-        except Exception as error:
-            errors.append(str(error))
+                    p_lat, p_lon = float(p_lat), float(p_lon)
+                    identity = (name.strip().lower(), round(p_lat, 5), round(p_lon, 5))
+                    if identity in seen:
+                        continue
+                    seen.add(identity)
+                    found.append({
+                        "name": str(name).strip(),
+                        "lat": p_lat,
+                        "lon": p_lon,
+                        "category": str(
+                            tags.get("tourism")
+                            or tags.get("historic")
+                            or tags.get("heritage")
+                            or "Attraction"
+                        ).replace("_", " " ).title(),
+                        "source": "OpenStreetMap",
+                    })
+
+                found.sort(key=lambda p: haversine_km(lat, lon, p["lat"], p["lon"]))
+                # Return results from the first successful radius/server.
+                return found
+            except (requests.RequestException, ValueError, KeyError, TypeError) as error:
+                errors.append(f"{server} ({radius} km): {str(error)[:100]}")
 
     raise RuntimeError(
-        "The attraction service timed out or is unavailable. "
-        "Try again or use a smaller radius. "
-        + " | ".join(errors[-2:])
+        "Nearby attraction data is temporarily unavailable from the public map servers. "
+        "Your website is running, but this external service is not responding. "
+        "Please wait a little and try again; successful searches are cached for one hour."
     )
 
 
